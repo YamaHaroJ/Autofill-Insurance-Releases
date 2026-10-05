@@ -56,10 +56,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" release-assets/*.zip --clobber
+          if gh release view "$RELEASE_TAG" --repo YamaHaroJ/Autofill-Insurance-Releases >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release-assets/*.zip --repo YamaHaroJ/Autofill-Insurance-Releases --clobber
           else
             gh release create "$RELEASE_TAG" release-assets/*.zip \
+              --repo YamaHaroJ/Autofill-Insurance-Releases \
               --title "Jay Native Components $RELEASE_TAG" \
               --notes "Native macOS audio, transcription, and AI components for Jay Application Autofill."
           fi
