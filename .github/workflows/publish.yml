@@ -1,0 +1,65 @@
+name: Publish Jay Native Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: v0.2.1
+      INTEL_ARTIFACT_ID: "11334343544"
+      ARM_ARTIFACT_ID: "11334393474"
+
+    steps:
+      - name: Download private build artifacts
+        env:
+          SOURCE_REPO_TOKEN: ${{ secrets.SOURCE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$SOURCE_REPO_TOKEN"
+          mkdir -p wrappers/intel wrappers/arm release-assets
+
+          curl -L --fail \
+            -H "Authorization: Bearer $SOURCE_REPO_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/YamaHaroJ/Autofill-Insurance-Extension/actions/artifacts/$INTEL_ARTIFACT_ID/zip" \
+            -o wrappers/intel.zip
+
+          curl -L --fail \
+            -H "Authorization: Bearer $SOURCE_REPO_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/YamaHaroJ/Autofill-Insurance-Extension/actions/artifacts/$ARM_ARTIFACT_ID/zip" \
+            -o wrappers/arm.zip
+
+          unzip -q wrappers/intel.zip -d wrappers/intel
+          unzip -q wrappers/arm.zip -d wrappers/arm
+
+          INTEL_ZIP="$(find wrappers/intel -type f -name '*.zip' | head -1)"
+          ARM_ZIP="$(find wrappers/arm -type f -name '*.zip' | head -1)"
+          test -n "$INTEL_ZIP"
+          test -n "$ARM_ZIP"
+
+          cp "$INTEL_ZIP" release-assets/Jay-Installer-macOS-x86_64.zip
+          cp "$ARM_ZIP" release-assets/Jay-Installer-macOS-arm64.zip
+          ls -lh release-assets
+
+      - name: Publish release in this repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release-assets/*.zip --clobber
+          else
+            gh release create "$RELEASE_TAG" release-assets/*.zip \
+              --title "Jay Native Components $RELEASE_TAG" \
+              --notes "Native macOS audio, transcription, and AI components for Jay Application Autofill."
+          fi
